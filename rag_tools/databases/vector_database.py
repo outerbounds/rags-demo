@@ -21,31 +21,31 @@ class AbstractDB:
 
 class PineconeDB(AbstractDB):
 
-    def __init__(self,):
+    def __init__(self, region='us-east-1'):
         super().__init__()
-        import pinecone
-        pinecone.init(
-            api_key=os.environ['PINECONE_API_KEY'],
-            environment=os.environ['GCP_ENVIRONMENT']
-        )
+        import pinecone as pc
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        self.region = region
+
 
     def create_index(self, index_name, dimension, metric='cosine'):
-        import pinecone
+        import pinecone as pc
 
         if index_name not in pinecone.list_indexes():
-            pinecone.create_index(
+            pc.create_index(
                 name=index_name,
-                dimension=dimension,
-                metric='cosine'
+                dimension=dimension, 
+                metric='cosine',
+                spec=ServerlessSpec(cloud='aws', region=self.region)
             )
             # wait a moment for the index to be fully initialized
             time.sleep(1)
 
     def upsert(self, index_name, embeddings, texts, ids):
-        import pinecone
+        import pinecone as pc
 
         # now connect to the index
-        index = pinecone.GRPCIndex(index_name)
+        index = pc.Index(index_name)
 
         # upsert the vectors, but this should be done in batches not one by one.
         print("Upserting vectors", end="")
@@ -61,14 +61,14 @@ class PineconeDB(AbstractDB):
             print(".", end="")
 
     def vector_search(self, index_name, vector, k=1):
-        import pinecone
-        index = pinecone.GRPCIndex(index_name)
-        xc = index.query(vector.tolist(), top_k=k, include_metadata=True)
+        import pinecone as pc
+        index = pc.Index(index_name)
+        xc = index.query(vector=vector.tolist(), top_k=k, include_metadata=True)
         return xc
 
     def destroy_index(self, index_name):
-        import pinecone
-        pinecone.delete_index(index_name)
+        import pinecone as pc
+        pc.delete_index(index_name)
 
 
 class LanceDB(AbstractDB):
